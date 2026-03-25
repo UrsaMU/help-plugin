@@ -1,6 +1,6 @@
 {
   "name": "help",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "API-first help system framework — aggregates command help, per-plugin help folders, and runtime entries.",
   "ursamu": ">=1.9.0",
   "author": "UrsaMU",
