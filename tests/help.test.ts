@@ -174,7 +174,7 @@ describe("CommandProvider", () => {
 
 import { FileProvider, registerHelpDir, bustCache } from "../src/providers/file.ts";
 
-describe("FileProvider", () => {
+describe({ name: "FileProvider", sanitizeResources: false, sanitizeOps: false }, () => {
   it("has priority 50", () => {
     assertEquals(new FileProvider().priority, 50);
   });
