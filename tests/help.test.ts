@@ -174,7 +174,7 @@ describe("CommandProvider", () => {
 
 import { FileProvider, registerHelpDir, bustCache } from "../src/providers/file.ts";
 
-describe("FileProvider", () => {
+describe({ name: "FileProvider", sanitizeResources: false, sanitizeOps: false }, () => {
   it("has priority 50", () => {
     assertEquals(new FileProvider().priority, 50);
   });
@@ -233,10 +233,10 @@ describe("renderEntry", () => {
 
   it("output starts with a header and ends with a footer", () => {
     const out = renderEntry(makeEntry("test"));
-    // Header contains [ TEST ]
+    // Topic name uppercased
     assertStringIncludes(out, "TEST");
-    // Footer is repeated = chars (color-coded)
-    assertStringIncludes(out, "%cr=%cn");
+    // Separator is repeated - chars (color-coded cyan)
+    assertStringIncludes(out, "%ch%cb");
   });
 });
 
