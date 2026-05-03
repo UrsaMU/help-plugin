@@ -1,22 +1,23 @@
-# Help System
++HELP
 
-The help system aggregates topics from three sources:
+Overview of the help system and how to browse it.
 
-- **Commands** — inline help declared in `addCmd()` registrations
-- **Files** — markdown files in `./help/` and per-plugin `help/` folders
-- **Database** — runtime entries created with `+help/set`
+SYNTAX
+  help [<topic>]
+  help/section [<name>]
 
-## Browsing
+DESCRIPTION
+  Type help alone to see all sections. Type help <topic> to read
+  a topic. Use / for sub-topics, e.g. `help theme/tokens`.
 
-Type `help` to see all sections. Type `help <topic>` for a specific topic.
-Use `/` to navigate sub-topics: `help mail/send`.
+  Topics come from `.md` files, command inline help, and runtime
+  entries (**+help/set**). **Database entries** take priority.
+  Admins: manage topics with **+help/set** and **+help/reload**;
+  customise appearance with **+help/theme**.
 
-## Sections
+EXAMPLES
+  help                  Show the section index.
+  help mail             Look up the "mail" topic.
+  help/section combat   List all topics in a section.
 
-Topics are grouped into sections. `help/section <name>` lists everything in a section.
-
-## For Admins
-
-- `+help/set` — add or update a help entry at runtime
-- `+help/del` — remove a runtime entry
-- `+help/reload` — rescan help files without restarting
+SEE ALSO: +help/set, +help/reload, +help/theme

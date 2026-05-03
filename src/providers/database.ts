@@ -29,6 +29,7 @@ function toHelpEntry(row: IHelpDbEntry): HelpEntry {
     content: row.content,
     source: "database",
     tags: row.tags ?? [],
+    ...(row.name.startsWith("_") ? { hidden: true } : {}),
   };
 }
 

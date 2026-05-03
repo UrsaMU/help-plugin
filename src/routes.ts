@@ -8,6 +8,8 @@
  */
 
 import { registerPluginRoute, dbojs } from "@ursamu/ursamu";
+import { currentTheme, saveThemeOverlay, resetThemeOverlay, DEFAULT_THEME } from "./theme.ts";
+import type { PartialTheme } from "./theme.ts";
 import { helpRegistry, slugify } from "./registry.ts";
 import { upsertEntry, deleteEntry } from "./providers/database.ts";
 import { emitHelp } from "./hooks.ts";
@@ -23,9 +25,7 @@ async function isAdmin(userId: string): Promise<boolean> {
   return flagSet.has("admin") || flagSet.has("wizard") || flagSet.has("superuser");
 }
 
-registerPluginRoute("/api/v1/help", async (req, userId) => {
-  const url = new URL(req.url);
-
+registerPluginRoute("/api/v1/help", async (req, _userId) => {
   // Route: GET /api/v1/help
   if (req.method === "GET") {
     const sections = await helpRegistry.sections();
@@ -118,6 +118,57 @@ registerPluginRoute("/api/v1/help/:topic", async (req, userId) => {
     }
 
     return new Response(null, { status: 204 });
+  }
+
+  return Response.json({ error: "Method not allowed" }, { status: 405 });
+});
+
+// ── Theme routes ──────────────────────────────────────────────────────────────
+
+registerPluginRoute("/api/v1/help/theme", async (req, userId) => {
+  // GET — public: return current theme
+  if (req.method === "GET") {
+    return Response.json({ theme: currentTheme() });
+  }
+
+  // Write operations require auth + admin
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!(await isAdmin(userId))) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // PATCH — update one or more keys
+  if (req.method === "PATCH") {
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const topLevelKeys = ["headerfmt", "dividerfmt", "footerfmt", "indexfmt"] as const;
+    const tokenKeys = Object.keys(DEFAULT_THEME.tokens) as string[];
+    const overlay: PartialTheme = {};
+
+    for (const [key, value] of Object.entries(body)) {
+      if (typeof value !== "string") continue;
+      if ((topLevelKeys as readonly string[]).includes(key)) {
+        (overlay as Record<string, string>)[key] = value;
+      } else if (tokenKeys.includes(key)) {
+        overlay.tokens = { ...overlay.tokens, [key]: value };
+      }
+    }
+
+    await saveThemeOverlay(overlay);
+    return Response.json({ theme: currentTheme() });
+  }
+
+  // DELETE — clear in-game overrides, fall back to config file / defaults
+  if (req.method === "DELETE") {
+    await resetThemeOverlay();
+    return Response.json({ theme: currentTheme() });
   }
 
   return Response.json({ error: "Method not allowed" }, { status: 405 });

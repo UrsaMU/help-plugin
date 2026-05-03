@@ -26,6 +26,8 @@ export interface HelpEntry {
   source: HelpSource;
   /** Alternate names that resolve to this topic. */
   tags: string[];
+  /** If true, excluded from all() and sections() listings but still lookup-able. */
+  hidden?: boolean;
 }
 
 /** Implement this interface to add a custom help source. */
@@ -59,6 +61,7 @@ export class HelpRegistry {
    * Look up a topic across all providers.
    * Returns the first non-null result (providers sorted by descending priority).
    * Also checks aliases (tags) if direct lookup fails.
+   * Hidden entries ARE returned — they are just excluded from listings.
    */
   async lookup(rawTopic: string): Promise<HelpEntry | null> {
     const topic = slugify(rawTopic);
@@ -68,13 +71,13 @@ export class HelpRegistry {
       if (entry) return entry;
     }
 
-    // Fallback: scan tags of all entries
-    const all = await this.all();
+    // Fallback: scan tags of all entries including hidden
+    const all = await this._allEntries();
     return all.find((e) => e.tags.includes(topic)) ?? null;
   }
 
-  /** All entries across all providers, deduped by name (higher-priority provider wins). */
-  async all(): Promise<HelpEntry[]> {
+  /** All entries across all providers, deduped by name (higher-priority provider wins), including hidden. */
+  private async _allEntries(): Promise<HelpEntry[]> {
     const seen = new Map<string, HelpEntry>();
 
     // Iterate lowest-priority first so higher-priority entries overwrite
@@ -87,6 +90,11 @@ export class HelpRegistry {
     }
 
     return Array.from(seen.values());
+  }
+
+  /** All non-hidden entries across all providers, deduped by name (higher-priority provider wins). */
+  async all(): Promise<HelpEntry[]> {
+    return (await this._allEntries()).filter((e) => !e.hidden);
   }
 
   /** All distinct section names, sorted alphabetically. */
@@ -106,7 +114,7 @@ export class HelpRegistry {
 }
 
 /** Singleton registry shared across all providers and commands. */
-export const helpRegistry = new HelpRegistry();
+export const helpRegistry: HelpRegistry = new HelpRegistry();
 
 /**
  * Register a single help entry at runtime (does not persist — use DbProvider
@@ -117,8 +125,8 @@ export function registerHelpEntry(entry: HelpEntry): void {
   // Inline single-entry provider, lowest priority
   const p: HelpProvider = {
     priority: 5,
-    get: async (topic) => (slugify(entry.name) === topic ? entry : null),
-    all: async () => [entry],
+    get: (topic) => Promise.resolve(slugify(entry.name) === topic ? entry : null),
+    all: () => Promise.resolve([entry]),
   };
   helpRegistry.addProvider(p);
 }

@@ -15,7 +15,8 @@ import { helpRegistry } from "./registry.ts";
 import { CommandProvider } from "./providers/command.ts";
 import { FileProvider, registerHelpDir, bustCache } from "./providers/file.ts";
 import { DbProvider } from "./providers/database.ts";
-import { fromFileUrl } from "jsr:@std/path";
+import { fromFileUrl } from "@std/path";
+import { loadTheme } from "./theme.ts";
 
 const commandProvider = new CommandProvider();
 const fileProvider    = new FileProvider();
@@ -35,6 +36,8 @@ export const plugin: IPlugin = {
   description: "API-first help system — aggregates command inline help, per-plugin help folders, and runtime entries.",
 
   init: async () => {
+    await loadTheme();
+
     // Register this plugin's own help/ directory
     registerHelpDir(
       fromFileUrl(new URL("../help", import.meta.url)),

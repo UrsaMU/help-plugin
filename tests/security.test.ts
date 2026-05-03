@@ -116,7 +116,7 @@ describe("H1 — registerHelpDir path resolution", () => {
       // Register the outside dir directly — no guard in the current code
       registerHelpDir(outsideDir, "test-h1");
       const provider = new FileProvider();
-      const entries = await provider.all();
+      const _entries = await provider.all();
 
       // After patch: the path is resolved and a warning is emitted, but the
       // content must NOT appear if the path is blocked. Since H1's fix is a
@@ -135,7 +135,7 @@ describe("H1 — registerHelpDir path resolution", () => {
 
       // After fix: traversal path is resolved to /etc — and since C1 containment
       // check is active, no content from /etc should appear in results.
-      const leaked = entries2.find(
+      const _leaked = entries2.find(
         (e) => e.content.length > 0 && !e.content.includes("Hello"),
       );
       // We specifically check no /etc passwd-style content leaked
@@ -233,7 +233,7 @@ describe("L1 — scanDir must warn on read errors instead of silently swallowing
     const catchBlocks = source.split("} catch");
     // There should be at least 2 catch blocks (readDir + readTextFile)
     // and each should contain a warn call
-    const catchesWithoutWarn = catchBlocks.slice(1).filter(
+    const _catchesWithoutWarn = catchBlocks.slice(1).filter(
       (block) => {
         const body = block.split("}")[0];
         return !body.includes("console.warn") && !body.includes("return entries") === false;

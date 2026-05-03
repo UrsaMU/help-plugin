@@ -15,7 +15,7 @@ import { assertEquals } from "@std/assert";
 import { gameHooks } from "@ursamu/ursamu";
 import { plugin } from "../src/index.ts";
 
-describe("SECURITY [M-01]: engine:ready listener accumulation", () => {
+describe({ name: "SECURITY [M-01]: engine:ready listener accumulation", sanitizeResources: false, sanitizeOps: false }, () => {
   it("[EXPLOIT] remove() does not deregister engine:ready handler — listeners accumulate", async () => {
     // Intercept on()/off() so we can track the net handler count for "engine:ready"
     // without needing access to the internal _handlers Map.

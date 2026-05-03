@@ -143,14 +143,17 @@ async function scanDir(
         content,
         source: "file",
         tags: [],
+        ...(entry.name.startsWith("_") ? { hidden: true } : {}),
       });
     } else {
+      const isHidden = entry.name.startsWith("_");
       entries.push({
         name: slugify(topicName),
         section,
         content,
         source: "file",
         tags: [],
+        ...(isHidden ? { hidden: true } : {}),
       });
     }
   }

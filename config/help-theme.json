@@ -1,0 +1,9 @@
+{
+  "_comment": "Help plugin theme config. All keys are optional — omit to use the built-in default. In-game +help/theme/set overrides take precedence over values set here.",
+  "tokens": {
+    "sep":   "%cr",
+    "smaj":  "=",
+    "smin":  "-",
+    "title": "%ch%cw"
+  }
+}

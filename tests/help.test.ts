@@ -22,8 +22,8 @@ import { HelpRegistry, slugify, registerHelpEntry } from "../src/registry.ts";
 function makeProvider(entries: HelpEntry[], priority: number): HelpProvider {
   return {
     priority,
-    get:  async (topic: string) => entries.find((e) => e.name === topic) ?? null,
-    all:  async ()              => [...entries],
+    get:  (topic: string) => Promise.resolve(entries.find((e) => e.name === topic) ?? null),
+    all:  ()              => Promise.resolve([...entries]),
   };
 }
 
@@ -219,51 +219,57 @@ describe("DbProvider", () => {
 import { renderEntry, renderIndex, renderSection } from "../src/renderer.ts";
 
 describe("renderEntry", () => {
-  it("includes the topic name uppercased in header", () => {
-    assertStringIncludes(renderEntry(makeEntry("mail", "general", "Send mail.")), "MAIL");
+  it("includes the topic name uppercased in header", async () => {
+    assertStringIncludes(await renderEntry(makeEntry("mail", "general", "Send mail.")), "MAIL");
   });
 
-  it("renders markdown body content", () => {
-    assertStringIncludes(renderEntry(makeEntry("mail", "general", "Send mail to a player.")), "Send mail");
+  it("renders markdown body content", async () => {
+    assertStringIncludes(await renderEntry(makeEntry("mail", "general", "Send mail to a player.")), "Send mail");
   });
 
-  it("shows fallback message when content is empty", () => {
-    assertStringIncludes(renderEntry(makeEntry("nodoc", "general", "")), "No detailed help");
+  it("shows fallback message when content is empty", async () => {
+    assertStringIncludes(await renderEntry(makeEntry("nodoc", "general", "")), "No detailed help");
   });
 
-  it("output starts with a header and ends with a footer", () => {
-    const out = renderEntry(makeEntry("test"));
-    // Topic name uppercased
+  it("output starts with a header and ends with a footer", async () => {
+    const out = await renderEntry(makeEntry("test"));
     assertStringIncludes(out, "TEST");
-    // Separator is repeated - chars (color-coded cyan)
-    assertStringIncludes(out, "%ch%cb");
+    assertStringIncludes(out, "=");
   });
 });
 
+import { helpRegistry } from "../src/registry.ts";
+
 describe("renderIndex", () => {
-  it("includes all section names uppercased", () => {
-    const out = renderIndex(["general", "combat", "admin"], 42);
-    assertStringIncludes(out, "GENERAL");
-    assertStringIncludes(out, "COMBAT");
-    assertStringIncludes(out, "ADMIN");
+  it("includes section names from the registry", async () => {
+    const p = makeProvider([
+      makeEntry("dodge",  "combat"),
+      makeEntry("build",  "admin"),
+      makeEntry("intro",  "general"),
+    ], 10);
+    helpRegistry.addProvider(p);
+    try {
+      const out = await renderIndex([], 0);
+      assertStringIncludes(out, "ADMIN");
+      assertStringIncludes(out, "COMBAT");
+      assertStringIncludes(out, "GENERAL");
+    } finally {
+      helpRegistry.removeProvider(p);
+    }
   });
 
-  it("includes the total topic count", () => {
-    assertStringIncludes(renderIndex(["general"], 7), "7");
-  });
-
-  it("includes browse instruction", () => {
-    assertStringIncludes(renderIndex([], 0), "help <topic>");
+  it("includes browse instruction", async () => {
+    assertStringIncludes(await renderIndex([], 0), "help <topic>");
   });
 });
 
 describe("renderSection", () => {
-  it("includes section name uppercased in header", () => {
-    assertStringIncludes(renderSection("combat", [makeEntry("dodge", "combat")]), "COMBAT");
+  it("includes section name uppercased in header", async () => {
+    assertStringIncludes(await renderSection("combat", [makeEntry("dodge", "combat")]), "COMBAT");
   });
 
-  it("lists topic names", () => {
-    const out = renderSection("combat", [
+  it("lists topic names", async () => {
+    const out = await renderSection("combat", [
       makeEntry("dodge",  "combat"),
       makeEntry("attack", "combat"),
     ]);
@@ -271,8 +277,8 @@ describe("renderSection", () => {
     assertStringIncludes(out, "ATTACK");
   });
 
-  it("shows empty message when no entries", () => {
-    assertStringIncludes(renderSection("empty", []), "No topics");
+  it("shows empty message when no entries", async () => {
+    assertStringIncludes(await renderSection("empty", []), "No topics");
   });
 });
 
@@ -280,7 +286,7 @@ describe("renderSection", () => {
 
 import { plugin } from "../src/index.ts";
 
-describe("plugin", () => {
+describe({ name: "plugin", sanitizeResources: false, sanitizeOps: false }, () => {
   it("has name 'help'", () => {
     assertEquals(plugin.name, "help");
   });

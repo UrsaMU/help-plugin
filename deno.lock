@@ -15,6 +15,9 @@
     "jsr:@std/path@0.224.0": "0.224.0",
     "jsr:@std/semver@1": "1.0.8",
     "jsr:@std/testing@0.224": "0.224.0",
+    "jsr:@ursamu/mushcode@*": "0.3.4",
+    "jsr:@ursamu/ursamu@*": "1.9.23",
+    "jsr:@ursamu/ursamu@1.9": "1.9.23",
     "jsr:@ursamu/ursamu@^1.9.0": "1.9.23",
     "jsr:@zaubrik/djwt@^3.0.2": "3.0.2",
     "npm:@deno/sandbox@0.10.0": "0.10.0",
@@ -81,6 +84,9 @@
     },
     "@std/testing@0.224.0": {
       "integrity": "371b8a929aa7132240d5dd766a439be8f780ef5c176ab194e0bcab72370c761e"
+    },
+    "@ursamu/mushcode@0.3.4": {
+      "integrity": "d365d0e5d0993a6788ee768591a57c1a0c3ef8af846aea5c7fb503dd1cfb1f62"
     },
     "@ursamu/ursamu@1.9.23": {
       "integrity": "317cca63377fa405e96bcbb9d4936d7973b3308f8971d902a0779aff62e88581",
@@ -468,8 +474,11 @@
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@0.224",
+      "jsr:@std/flags@0.224",
+      "jsr:@std/fs@0.224",
       "jsr:@std/path@0.224",
       "jsr:@std/testing@0.224",
+      "jsr:@ursamu/mushcode@*",
       "jsr:@ursamu/ursamu@^1.9.0"
     ]
   }

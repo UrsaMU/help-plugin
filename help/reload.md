@@ -1,20 +1,18 @@
-# +help/reload
++HELP/RELOAD
 
-Clears the file provider cache and rescans all registered help directories.
+Clear the file provider cache and rescan all help directories.
 
-## Syntax
+SYNTAX
+  +help/reload
 
-```
-+help/reload
-```
+DESCRIPTION
+  Use after adding or editing `.md` files in `./help/` or any
+  plugin's help/ folder without restarting the server.
 
-## When to use
+  Only affects file-based topics. **Database entries** (**+help/set**)
+  are read live and are not cached.
 
-After adding or editing `.md` files in `./help/` or any plugin's `help/` folder
-without restarting the server. The cache is also rebuilt automatically on the next
-lookup after a reload.
+EXAMPLES
+  +help/reload    Rescan all help directories.
 
-## Notes
-
-This only affects file-based topics. Database entries (`+help/set`) are
-read live and are not cached.
+SEE ALSO: help, +help/set

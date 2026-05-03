@@ -1,0 +1,178 @@
+{
+  "key": "help-basic",
+  "label": "help-plugin — live demo",
+  "vars": {
+    "player": "Tester"
+  },
+  "steps": [
+    {
+      "sub": "Browsing the Index"
+    },
+    {
+      "note": "A bare 'help' with no topic shows all registered sections and a browse hint."
+    },
+    {
+      "cmd": "help",
+      "label": "top-level index"
+    },
+    {
+      "sub": "Looking Up File-Based Topics"
+    },
+    {
+      "note": "Topics backed by help/*.md files — markdown is rendered with MUSH color codes."
+    },
+    {
+      "cmd": "help general",
+      "label": "help/index.md — registered as section landing 'general'"
+    },
+    {
+      "cmd": "help set",
+      "label": "help/set.md — how to create runtime entries"
+    },
+    {
+      "cmd": "help reload",
+      "label": "help/reload.md — how to flush the file cache"
+    },
+    {
+      "cmd": "help theme",
+      "label": "help/theme.md — configuring appearance"
+    },
+    {
+      "sub": "Browsing a Section"
+    },
+    {
+      "cmd": "help/section general",
+      "label": "list all topics in the 'general' section"
+    },
+    {
+      "sub": "Creating a Runtime Entry (with markdown)"
+    },
+    {
+      "note": "Entries use subtle markdown — **bold** for key terms, `backticks` for values."
+    },
+    {
+      "cmd": "+help/set house-rules=**House Rules** apply to all players at all times.\n\n- No griefing in `arena` or `market` zones.\n- Disputes go to **+request** — not tells.\n- Have fun.",
+      "label": "create a 'house-rules' entry with markdown",
+      "as": "admin"
+    },
+    {
+      "expect": "saved"
+    },
+    {
+      "cmd": "help house-rules",
+      "label": "DB entry visible to all players — markdown rendered"
+    },
+    {
+      "sub": "Hidden Topics"
+    },
+    {
+      "note": "Topics with a _ prefix are hidden from the index but accessible by direct lookup."
+    },
+    {
+      "cmd": "+help/set _staff-notes=**Staff-only.** Do not share with players.\n\nCurrent plot: the `artifact` is in room #42.",
+      "label": "create a hidden entry",
+      "as": "admin"
+    },
+    {
+      "expect": "saved"
+    },
+    {
+      "cmd": "help _staff-notes",
+      "label": "direct lookup works"
+    },
+    {
+      "cmd": "help/section general",
+      "label": "_staff-notes does NOT appear in the section listing"
+    },
+    {
+      "sub": "Updating and Deleting"
+    },
+    {
+      "cmd": "+help/set house-rules=Updated policy: **be kind**, have fun, no exceptions.",
+      "label": "+help/set on an existing topic replaces it",
+      "as": "admin"
+    },
+    {
+      "cmd": "help house-rules",
+      "label": "shows updated content"
+    },
+    {
+      "cmd": "+help/del house-rules",
+      "label": "delete the DB entry",
+      "as": "admin"
+    },
+    {
+      "expect": "deleted"
+    },
+    {
+      "cmd": "+help/del _staff-notes",
+      "label": "clean up hidden entry",
+      "as": "admin"
+    },
+    {
+      "sub": "Theme — Viewing Current Settings"
+    },
+    {
+      "note": "Admins can inspect the active theme and see which layer each key comes from."
+    },
+    {
+      "cmd": "+help/theme",
+      "label": "show all theme keys and source layers",
+      "as": "admin"
+    },
+    {
+      "sub": "Theme — Customising a Token"
+    },
+    {
+      "note": "Tokens are color codes used in format strings and body text rendering."
+    },
+    {
+      "cmd": "+help/theme/set sep=%cb",
+      "label": "change separator color to blue",
+      "as": "admin"
+    },
+    {
+      "cmd": "help index",
+      "label": "header and footer now use blue separator"
+    },
+    {
+      "cmd": "+help/theme/reset",
+      "label": "clear in-game overrides — falls back to config/defaults",
+      "as": "admin"
+    },
+    {
+      "sub": "Theme — Custom indexfmt"
+    },
+    {
+      "note": "indexfmt controls the body of the help index. sectionlist() returns a pre-colored section list."
+    },
+    {
+      "cmd": "+help/theme/set indexfmt=%r[sectionlist()]%r%r  Type `help <topic>` to read a topic.%cn",
+      "label": "custom index body with extra spacing",
+      "as": "admin"
+    },
+    {
+      "cmd": "help",
+      "label": "index now uses the custom indexfmt"
+    },
+    {
+      "cmd": "+help/theme/reset",
+      "label": "restore defaults",
+      "as": "admin"
+    },
+    {
+      "sub": "Reloading the File Cache"
+    },
+    {
+      "note": "After editing .md files on disk without a server restart, use +help/reload."
+    },
+    {
+      "cmd": "+help/reload",
+      "label": "flush FileProvider cache",
+      "as": "admin"
+    },
+    {
+      "reset": true
+    }
+  ]
+}

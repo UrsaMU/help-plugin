@@ -20,6 +20,8 @@ import {
   renderIndex,
   renderSection,
 } from "./renderer.ts";
+import { currentTheme, configTheme, saveThemeOverlay, resetThemeOverlay, DEFAULT_THEME } from "./theme.ts";
+import type { HelpTheme } from "./theme.ts";
 
 // ── help ────────────────────────────────────────────────────────────────────
 
@@ -58,7 +60,7 @@ Examples:
 async function showIndex(u: IUrsamuSDK): Promise<void> {
   const sections = await helpRegistry.sections();
   const all      = await helpRegistry.all();
-  u.send(renderIndex(sections, all.length));
+  u.send(await renderIndex(sections, all.length));
 }
 
 async function showSection(u: IUrsamuSDK, section: string): Promise<void> {
@@ -67,7 +69,7 @@ async function showSection(u: IUrsamuSDK, section: string): Promise<void> {
     return;
   }
   const entries = await helpRegistry.inSection(section);
-  u.send(renderSection(section, entries));
+  u.send(await renderSection(section, entries));
 }
 
 async function showTopic(u: IUrsamuSDK, topic: string): Promise<void> {
@@ -87,7 +89,7 @@ async function showTopic(u: IUrsamuSDK, topic: string): Promise<void> {
     return;
   }
 
-  u.send(renderEntry(entry));
+  u.send(await renderEntry(entry));
 }
 
 // ── +help/set ────────────────────────────────────────────────────────────────
@@ -101,10 +103,12 @@ addCmd({
 
   <topic>  Lowercase slug. Use "/" for sub-topics, e.g. "mail/send".
   <text>   Markdown content. Supports headers, bold, lists, inline code.
+  Topics starting with _ are hidden from listings but still lookup-able.
 
 Examples:
   +help/set house-rules=# House Rules\\nNo griefing.
-  +help/set combat/dodge=Dodge reduces incoming damage by 50%.`,
+  +help/set combat/dodge=Dodge reduces incoming damage by 50%.
+  +help/set _internal=Staff-only notes.`,
   exec: async (u: IUrsamuSDK) => {
     const rawTopic = u.util.stripSubs(u.cmd.args[0]).trim();
     const content  = u.util.stripSubs(u.cmd.args[1]).trim();
@@ -181,5 +185,103 @@ Examples:
   exec: (u: IUrsamuSDK) => {
     bustCache();
     u.send("%chHelp file cache cleared. Topics will be rescanned on next lookup.%cn");
+  },
+});
+
+// ── +help/theme ───────────────────────────────────────────────────────────────
+
+addCmd({
+  name: "+help/theme",
+  pattern: /^\+help\/theme$/i,
+  lock: "connected admin+",
+  category: "Admin",
+  help: `+help/theme  — Show the current help theme settings.
+
+Examples:
+  +help/theme    Display current headerfmt, dividerfmt, footerfmt, and tokens.`,
+  exec: (u: IUrsamuSDK) => {
+    const resolved = currentTheme();
+    const cfgBase  = configTheme();
+
+    // Mark each value with its source layer.
+    function src(resolvedVal: string, cfgVal: string, defaultVal: string): string {
+      if (resolvedVal !== cfgVal)    return "%cy[game]%cn";
+      if (resolvedVal !== defaultVal) return "%cg[config]%cn";
+      return "%cw[default]%cn";
+    }
+
+    const fmtKeys = ["headerfmt", "dividerfmt", "footerfmt", "indexfmt"] as const;
+    const lines = [
+      "%ch%cwHelp Theme  %cy[game]%cn=%cy in-game override  %cg[config]%cn=%cgconfig file%cn",
+      ...fmtKeys.map((k) =>
+        `  %ch%cw${k}:%cn ${resolved[k]}  ${src(resolved[k], cfgBase[k], DEFAULT_THEME[k])}`
+      ),
+      "%ch%cwTokens:%cn",
+      ...Object.entries(resolved.tokens).map(([k, v]) =>
+        `  %ch%cw${k}:%cn ${v}  ${src(v, cfgBase.tokens[k as keyof HelpTheme["tokens"]], DEFAULT_THEME.tokens[k as keyof HelpTheme["tokens"]])}`
+      ),
+    ];
+    u.send(lines.join("%r"));
+  },
+});
+
+// ── +help/theme/set ───────────────────────────────────────────────────────────
+
+addCmd({
+  name: "+help/theme/set",
+  pattern: /^\+help\/theme\/set\s+(\S+)=([\s\S]*)/i,
+  lock: "connected admin+",
+  category: "Admin",
+  help: `+help/theme/set <key>=<value>  — Set a theme format string or token.
+
+  Keys: headerfmt, dividerfmt, footerfmt, indexfmt, or a token name
+        (sep, title, section, hint, h1, h2, h3, bold, italic,
+         code, codeblock, bullet, smaj, smin, ititle)
+
+  Format strings may contain any MUX softcode, e.g.:
+    [ansicenter( %qtitle%0%cn ,78,=)]
+    [repeat(%qsmaj,%2)]
+
+Examples:
+  +help/theme/set headerfmt=[ansicenter( %qtitle%0%cn ,%2,*)]
+  +help/theme/set smaj=-
+  +help/theme/set sep=%cb`,
+  exec: async (u: IUrsamuSDK) => {
+    const key   = u.util.stripSubs(u.cmd.args[0]).trim().toLowerCase();
+    const value = u.cmd.args[1] ?? "";
+
+    const topLevelKeys = ["headerfmt", "dividerfmt", "footerfmt", "indexfmt"] as const;
+    const tokenKeys = Object.keys(DEFAULT_THEME.tokens) as (keyof HelpTheme["tokens"])[];
+
+    if ((topLevelKeys as readonly string[]).includes(key)) {
+      await saveThemeOverlay({ [key]: value });
+      u.send(`%chTheme '%cn${key}%ch' updated.%cn`);
+      return;
+    }
+
+    if (tokenKeys.includes(key as keyof HelpTheme["tokens"])) {
+      await saveThemeOverlay({ tokens: { [key]: value } });
+      u.send(`%chToken '%cn${key}%ch' updated.%cn`);
+      return;
+    }
+
+    u.send(`%crUnknown theme key '%cn${key}%cr'. Use +help/theme to see valid keys.%cn`);
+  },
+});
+
+// ── +help/theme/reset ─────────────────────────────────────────────────────────
+
+addCmd({
+  name: "+help/theme/reset",
+  pattern: /^\+help\/theme\/reset$/i,
+  lock: "connected admin+",
+  category: "Admin",
+  help: `+help/theme/reset  — Clear in-game theme overrides, restoring the config file or built-in defaults.
+
+Examples:
+  +help/theme/reset    Remove all in-game overrides.`,
+  exec: async (u: IUrsamuSDK) => {
+    await resetThemeOverlay();
+    u.send("%chIn-game theme overrides cleared. Restored to config file / defaults.%cn");
   },
 });

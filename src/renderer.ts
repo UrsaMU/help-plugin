@@ -2,23 +2,13 @@
  * renderer.ts — converts HelpEntry content to output formats.
  *
  * Formats:
- *   "ansi"     MUSH color codes for in-game terminal display (MUX plushelp style)
+ *   "ansi"     MUSH color codes for in-game terminal display
  *   "json"     Plain object (for REST responses)
  *   "markdown" Raw markdown string (REST ?format=md)
  */
 
 import type { HelpEntry } from "./registry.ts";
-
-// ── Constants ───────────────────────────────────────────────────────────────
-
-const WIDTH     = 78;
-const COL_COUNT = 4;
-const COL_WIDTH = Math.floor(WIDTH / COL_COUNT); // 19
-const BODY_PAD  = "  "; // 2-space MUX-style indent
-const BODY_WRAP = WIDTH - BODY_PAD.length;       // 76
-
-// Subtle cyan separator, matches MUX plushelp aesthetic
-const SEP = "%ch%cb" + "-".repeat(WIDTH) + "%cn";
+import { evalFmt, currentTheme } from "./theme.ts";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -54,31 +44,29 @@ function wordWrap(text: string, width: number): string {
     .join("\n");
 }
 
-/** Convert markdown to MUSH ANSI color codes. */
+/** Convert markdown to MUSH ANSI color codes using theme tokens. */
 function markdownToAnsi(md: string): string {
+  const t = currentTheme();
   let out = md;
-  // Headers — bold white, then back to plain
-  out = out.replace(/^# (.+)$/gm,   "%ch%cw$1%cn");
-  out = out.replace(/^## (.+)$/gm,  "%ch%cw$1%cn");
-  out = out.replace(/^### (.+)$/gm, "%ch%cw$1%cn");
-  // Bold / italic
-  out = out.replace(/\*\*([^*]+)\*\*/g, "%ch$1%cn");
-  out = out.replace(/\*([^*]+)\*/g,     "%ci$1%cn");
-  // Inline code
-  out = out.replace(/`([^`]+)`/g, "%ch%cg$1%cn");
-  // Lists — MUX uses plain bullet
-  out = out.replace(/^\s*-\s+(.+)$/gm, "  - $1");
+  out = out.replace(/^# (.+)$/gm,   `${t.tokens.h1}$1%cn`);
+  out = out.replace(/^## (.+)$/gm,  `${t.tokens.h2}$1%cn`);
+  out = out.replace(/^### (.+)$/gm, `${t.tokens.h3}$1%cn`);
+  out = out.replace(/\*\*([^*]+)\*\*/g, `${t.tokens.bold}$1%cn`);
+  out = out.replace(/\*([^*]+)\*/g,     `${t.tokens.italic}$1%cn`);
+  out = out.replace(/`([^`]+)`/g,       `${t.tokens.code}$1%cn`);
+  out = out.replace(/^\s*-\s+(.+)$/gm,  `  ${t.tokens.bullet} $1`);
   return out;
 }
 
-/** Indent and word-wrap body content MUX-style (2-space indent, 76-char wrap). */
+/** Indent and word-wrap body content (2-space indent, 76-char wrap). */
 function formatBody(content: string): string {
-  const converted = markdownToAnsi(content);
-  return converted
+  const width   = 78;
+  const BODY_PAD  = "  ";
+  const BODY_WRAP = width - BODY_PAD.length;
+  return markdownToAnsi(content)
     .split("\n")
     .map((line) => {
-      const wrapped = wordWrap(line, BODY_WRAP);
-      return wrapped
+      return wordWrap(line, BODY_WRAP)
         .split("\n")
         .map((l) => (l.trim() === "" ? "" : BODY_PAD + l))
         .join("\n");
@@ -88,6 +76,10 @@ function formatBody(content: string): string {
 
 /** Render a 4-column topic/section listing. */
 function renderColumns(names: string[]): string {
+  const width     = 78;
+  const COL_COUNT = 4;
+  const COL_WIDTH = Math.floor(width / COL_COUNT); // 19
+  const BODY_PAD  = "  ";
   if (!names.length) return "";
   let out = "";
   for (let i = 0; i < names.length; i += COL_COUNT) {
@@ -100,38 +92,47 @@ function renderColumns(names: string[]): string {
 // ── Public render functions ──────────────────────────────────────────────────
 
 /** Render a single topic entry for in-game display. */
-export function renderEntry(entry: HelpEntry): string {
-  const title = `%ch%cw${entry.name.toUpperCase()}%cn`;
+export async function renderEntry(entry: HelpEntry): Promise<string> {
+  const BODY_PAD = "  ";
+  const t = currentTheme();
+
+  const header = await evalFmt(t.headerfmt, entry.name.toUpperCase(), "", 78);
+  const footer = await evalFmt(t.footerfmt, "", "", 78);
 
   const body = entry.content
     ? formatBody(entry.content)
-    : `${BODY_PAD}%cy(No detailed help available for this topic.)%cn`;
+    : `${BODY_PAD}${t.tokens.hint}(No detailed help available for this topic.)%cn`;
 
-  return `${SEP}\n${title}\n\n${body}\n${SEP}`;
+  // Only show section divider when entry has a real section (not general/unset)
+  const hasSection = entry.section && entry.section.toLowerCase() !== "general";
+  const sectionLine = hasSection
+    ? "\n" + await evalFmt(t.dividerfmt, entry.section.toUpperCase(), "", 78) + "\n"
+    : "\n";
+
+  return `${header}${sectionLine}\n${body}\n\n${footer}`;
 }
 
-/** Render the top-level help index (lists sections). */
-export function renderIndex(sections: string[], totalCount: number): string {
-  const title = `%ch%cwHelp System%cn  %cy(${totalCount} topic${totalCount === 1 ? "" : "s"})%cn`;
-
-  const cols = renderColumns(sections);
-
-  const hint =
-    `${BODY_PAD}%cyType '%ch%cwhelp <topic>%cn%cy' to look up a topic.%cn\n` +
-    `${BODY_PAD}%cyType '%ch%cwhelp/section <name>%cn%cy' to list topics in a section.%cn`;
-
-  return `${SEP}\n${title}\n\n${cols}\n${hint}\n${SEP}`;
+/** Render the top-level help index. */
+export async function renderIndex(_sections: string[], totalCount: number): Promise<string> {
+  const t = currentTheme();
+  const header = await evalFmt(t.headerfmt, "HELP", String(totalCount), 78);
+  const footer = await evalFmt(t.footerfmt, "", String(totalCount), 78);
+  const body   = await evalFmt(t.indexfmt,  "", String(totalCount), 78);
+  return `${header}\n${body}\n\n${footer}`;
 }
 
 /** Render a section listing. */
-export function renderSection(section: string, entries: HelpEntry[]): string {
-  const title = `%ch%cwSection: ${section.toUpperCase()}%cn`;
+export async function renderSection(section: string, entries: HelpEntry[]): Promise<string> {
+  const BODY_PAD = "  ";
+  const t = currentTheme();
+
+  const header = await evalFmt(t.headerfmt, section.toUpperCase(), "", 78);
+  const footer = await evalFmt(t.footerfmt, "", "", 78);
 
   if (!entries.length) {
-    return `${SEP}\n${title}\n\n${BODY_PAD}%cy(No topics in this section.)%cn\n${SEP}`;
+    return `${header}\n\n${BODY_PAD}${t.tokens.hint}(No topics in this section.)%cn\n\n${footer}`;
   }
 
   const cols = renderColumns(entries.map((e) => e.name));
-
-  return `${SEP}\n${title}\n\n${cols}${SEP}`;
+  return `${header}\n\n${cols}\n${footer}`;
 }
