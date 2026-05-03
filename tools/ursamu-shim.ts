@@ -3,11 +3,11 @@
 // in a local `cmds` array the showcase dispatcher can iterate.
 // deno-lint-ignore-file no-explicit-any
 
-export * from "@ursamu/ursamu";
+export * from "jsr:@ursamu/ursamu@^1.9";
 
 export const cmds: any[] = [];
 
-import { addCmd as _engine } from "@ursamu/ursamu";
+import { addCmd as _engine } from "jsr:@ursamu/ursamu@^1.9";
 
 export function addCmd(cmd: any): void {
   cmds.push(cmd);
