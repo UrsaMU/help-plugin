@@ -1,20 +1,17 @@
-+THEME/TOKENS — SEE ALSO: +help/theme
++THEME/TOKENS
 
-Color codes and characters used in **format strings** and body text.
+Color codes and separator characters used in **format strings** and body text.
+SEE ALSO: **+help/theme**, `theme/formats`
 
 TOKENS
-  sep       `%qsep`       Separator color        %cr
-  title     `%qtitle`     Header title color     %ch%cw
-  section   `%qsection`   Section name color     %cy
-  hint      `%qhint`      Muted text color       %cy
-  h1–h3     `%qh1`–`%qh3` Heading colors         %ch%cw
-  bold      `%qbold`      Bold color             %ch
-  italic    `%qitalic`    Italic color           %ci
-  code      `%qcode`      Inline code color      %ch%cg
-  codeblock `%qcodeblock` Code block color       %ch%cg
-  bullet    `%qbullet`    Bullet prefix char     -
-  smaj      `%qsmaj`      Major separator char   =
-  smin      `%qsmin`      Minor separator char   -
-  ititle    `%qititle`    Index title color      %ch%cw
-
-SEE ALSO: +help/theme, theme/formats
+  `sep`         `%qsep`        Separator line color        default: `%cr`
+  `title`       `%qtitle`      Header title color          default: `%ch%cw`
+  `section`     `%qsection`    Section name color          default: `%cy`
+  `hint`        `%qhint`       Muted / hint text color     default: `%cy`
+  `bold`        `%qbold`       Bold emphasis color         default: `%ch`
+  `code`        `%qcode`       Inline code color           default: `%ch%cg`
+  `codeblock`   `%qcodeblock`  Code block color            default: `%ch%cg`
+  `bullet`      `%qbullet`     Bullet prefix character     default: `-`
+  `smaj`        `%qsmaj`       Major separator character   default: `=`
+  `smin`        `%qsmin`       Minor separator character   default: `-`
+  `ititle`      `%qititle`     Index title color           default: `%ch%cw`

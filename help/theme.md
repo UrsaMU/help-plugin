@@ -1,23 +1,25 @@
 +HELP/THEME
 
-Configure help output appearance at runtime.
+Configure help output appearance at runtime via three-layer theming.
+
+  Layers resolve in order: **built-in defaults** → `config/help-theme.json`
+  → **in-game** (highest). **+help/theme/reset** clears only in-game
+  values and falls back to the config file.
 
 SYNTAX
   +help/theme
   +help/theme/set <key>=<value>
   +help/theme/reset
 
-DESCRIPTION
-  Layers: **built-in defaults** < `config/help-theme.json` < **in-game**.
-  reset clears only in-game values; falls back to config file.
-
-  +help/theme         Show all settings and their source layer.
-  +help/theme/set     Set a format string or color token.
-  +help/theme/reset   Clear in-game overrides.
+SWITCHES
+  (none)    Show all current settings and their source layer.
+  /set      Set a format string or color token by key.
+  /reset    Clear all in-game overrides.
 
 EXAMPLES
-  +help/theme/set indexfmt=%qsep%0%cn
+  +help/theme
   +help/theme/set sep=%cb
+  +help/theme/set indexfmt=[topiclist()]%cn
   +help/theme/reset
 
 SEE ALSO: theme/formats, theme/tokens
