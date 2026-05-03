@@ -28,6 +28,12 @@ export interface HelpEntry {
   tags: string[];
   /** If true, excluded from all() and sections() listings but still lookup-able. */
   hidden?: boolean;
+  /**
+   * Lock expression (same syntax as addCmd lock).
+   * Viewers that fail this lock see "no help available" and are excluded from listings.
+   * Undefined means no restriction — visible to all connected players.
+   */
+  lock?: string;
 }
 
 /** Implement this interface to add a custom help source. */

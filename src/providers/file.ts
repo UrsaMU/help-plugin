@@ -25,13 +25,27 @@
 
 import type { HelpEntry, HelpProvider } from "../registry.ts";
 import { slugify } from "../registry.ts";
+import { _registeredDirs, registerTextDir } from "./textdir.ts";
+export type { RegisteredDir } from "./textdir.ts";
 
-interface RegisteredDir {
-  path: string;
-  section: string;
+interface Frontmatter {
+  content: string;
+  lock?: string;
+  hidden?: boolean;
 }
 
-const _registeredDirs: RegisteredDir[] = [];
+/** Extract YAML-lite frontmatter (lock, hidden) from a markdown file. */
+function parseFrontmatter(raw: string): Frontmatter {
+  if (!raw.startsWith("---\n")) return { content: raw };
+  const end = raw.indexOf("\n---\n", 4);
+  if (end === -1) return { content: raw };
+  const fm      = raw.slice(4, end);
+  const content = raw.slice(end + 5);
+  const lock    = fm.match(/^lock:\s*(.+)$/m)?.[1]?.trim() || undefined;
+  const hidden  = fm.match(/^hidden:\s*true$/m) ? true : undefined;
+  return { content, lock, hidden };
+}
+
 let _cache: Map<string, HelpEntry> | null = null;
 
 /**
@@ -46,8 +60,8 @@ let _cache: Map<string, HelpEntry> | null = null;
  * registerHelpDir(new URL("./help", import.meta.url).pathname, "mail");
  */
 export function registerHelpDir(path: string, section: string): void {
-  _registeredDirs.push({ path, section });
-  _cache = null; // invalidate
+  registerTextDir([path], section);
+  _cache = null;
 }
 
 /** Clear file cache so the next lookup triggers a rescan. */
@@ -136,24 +150,28 @@ async function scanDir(
       continue;
     }
 
+    const fm = parseFrontmatter(content);
+
     if (isIndex) {
       entries.push({
         name: slugify(prefix || section),
         section,
-        content,
+        content: fm.content,
         source: "file",
         tags: [],
-        ...(entry.name.startsWith("_") ? { hidden: true } : {}),
+        ...(fm.hidden || entry.name.startsWith("_") ? { hidden: true } : {}),
+        ...(fm.lock ? { lock: fm.lock } : {}),
       });
     } else {
-      const isHidden = entry.name.startsWith("_");
+      const isHidden = fm.hidden || entry.name.startsWith("_");
       entries.push({
         name: slugify(topicName),
         section,
-        content,
+        content: fm.content,
         source: "file",
         tags: [],
         ...(isHidden ? { hidden: true } : {}),
+        ...(fm.lock ? { lock: fm.lock } : {}),
       });
     }
   }

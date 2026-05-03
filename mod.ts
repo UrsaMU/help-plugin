@@ -39,6 +39,8 @@ export type { HelpEntry, HelpProvider, HelpSource } from "./src/registry.ts";
 
 // File provider registration — for per-plugin help directories
 export { registerHelpDir, bustCache } from "./src/providers/file.ts";
+export { registerTextDir } from "./src/providers/textdir.ts";
+export type { RegisteredDir } from "./src/providers/textdir.ts";
 
 // DB operations — for programmatic help entry management
 export { upsertEntry, deleteEntry } from "./src/providers/database.ts";

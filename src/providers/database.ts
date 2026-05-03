@@ -18,6 +18,7 @@ export interface IHelpDbEntry {
   source: "database";
   createdBy: string;
   updatedAt: number;
+  lock?: string;
 }
 
 const db = new DBO<IHelpDbEntry>("help.entries");
@@ -30,6 +31,7 @@ function toHelpEntry(row: IHelpDbEntry): HelpEntry {
     source: "database",
     tags: row.tags ?? [],
     ...(row.name.startsWith("_") ? { hidden: true } : {}),
+    ...(row.lock ? { lock: row.lock } : {}),
   };
 }
 

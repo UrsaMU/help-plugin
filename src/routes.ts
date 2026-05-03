@@ -2,7 +2,7 @@
  * routes.ts — REST API for the help system.
  *
  * GET    /api/v1/help              → { sections, topics }   (no auth)
- * GET    /api/v1/help/:topic       → { entry }              (no auth)
+ * GET    /api/v1/help/:topic       → { entry }              (no auth, lock-gated)
  * POST   /api/v1/help/:topic       → { entry }              (admin only)
  * DELETE /api/v1/help/:topic       → 204                    (admin only)
  */
@@ -14,22 +14,58 @@ import { helpRegistry, slugify } from "./registry.ts";
 import { upsertEntry, deleteEntry } from "./providers/database.ts";
 import { emitHelp } from "./hooks.ts";
 
-/** Resolve whether a userId belongs to an admin or wizard.
- * flags is a space-separated string on the internal IDBOBJ type.
- */
+/** Resolve whether a userId belongs to an admin or wizard. */
 async function isAdmin(userId: string): Promise<boolean> {
   const actor = await dbojs.queryOne({ id: userId });
   if (!actor) return false;
-  // flags is a space-separated string on the internal IDBOBJ type
   const flagSet = new Set((actor.flags as unknown as string).split(" "));
   return flagSet.has("admin") || flagSet.has("wizard") || flagSet.has("superuser");
 }
 
-registerPluginRoute("/api/v1/help", async (req, _userId) => {
+/**
+ * Evaluate a HelpEntry lock expression against an HTTP caller.
+ *
+ * Lock expressions follow the same syntax as addCmd lock strings.
+ * Supported forms:
+ *   undefined / ""        — no restriction, always true
+ *   "connected"           — any authenticated caller (userId non-null)
+ *   "connected builder+"  — builder, admin, wizard, or superuser
+ *   "connected admin+"    — admin, wizard, or superuser
+ *   "connected wizard"    — wizard or superuser only
+ *
+ * Returns false for any lock when userId is null (unauthenticated).
+ * Exported for unit testing.
+ */
+export async function routePassesLock(
+  userId: string | null,
+  lock: string | undefined,
+): Promise<boolean> {
+  if (!lock) return true;
+  if (!userId) return false;
+
+  const actor = await dbojs.queryOne({ id: userId });
+  if (!actor) return false;
+  const flags = new Set((actor.flags as unknown as string).split(" "));
+
+  const expr = lock.replace(/^connected\s*/i, "").toLowerCase().trim();
+  if (!expr) return true; // bare "connected" — any authenticated user passes
+
+  if (expr === "wizard")    return flags.has("wizard") || flags.has("superuser");
+  if (expr === "admin+")    return flags.has("admin")   || flags.has("wizard") || flags.has("superuser");
+  if (expr === "builder+")  return flags.has("builder") || flags.has("admin")  || flags.has("wizard") || flags.has("superuser");
+  if (expr === "superuser") return flags.has("superuser");
+
+  // Unknown expression — default deny
+  return false;
+}
+
+registerPluginRoute("/api/v1/help", async (req, userId) => {
   // Route: GET /api/v1/help
   if (req.method === "GET") {
-    const sections = await helpRegistry.sections();
-    const topics   = await helpRegistry.all();
+    const all     = await helpRegistry.all();
+    const checks  = await Promise.all(all.map((e) => routePassesLock(userId, e.lock)));
+    const topics  = all.filter((_, i) => checks[i]);
+    const sections = [...new Set(topics.map((e) => e.section))].sort();
     return Response.json({ sections, topics });
   }
 
@@ -45,10 +81,10 @@ registerPluginRoute("/api/v1/help/:topic", async (req, userId) => {
     return Response.json({ error: "Topic is required" }, { status: 400 });
   }
 
-  // GET — public
+  // GET — public (lock-gated)
   if (req.method === "GET") {
     const entry = await helpRegistry.lookup(topic);
-    if (!entry) {
+    if (!entry || !(await routePassesLock(userId, entry.lock))) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
     // Support raw markdown via ?format=md

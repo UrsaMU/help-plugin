@@ -7,12 +7,14 @@
  *   +help/set <topic>=<text>   admin+     — create/update a DB help entry
  *   +help/del <topic>          admin+     — delete a DB help entry
  *   +help/reload               admin+     — bust file provider cache
+ *   +help/lock <topic>=<lock>  admin+     — set or clear a lock on a DB entry
  */
 
 import { addCmd } from "@ursamu/ursamu";
 import type { IUrsamuSDK } from "@ursamu/ursamu";
 import { emitHelp } from "./hooks.ts";
 import { helpRegistry, slugify } from "./registry.ts";
+import type { HelpEntry } from "./registry.ts";
 import { upsertEntry, deleteEntry } from "./providers/database.ts";
 import { bustCache } from "./providers/file.ts";
 import {
@@ -57,10 +59,21 @@ Examples:
   },
 });
 
+async function passesLock(u: IUrsamuSDK, lock: string | undefined): Promise<boolean> {
+  if (!lock) return true;
+  return await u.checkLock(u.me, lock);
+}
+
+async function visibleEntries(u: IUrsamuSDK): Promise<HelpEntry[]> {
+  const all = await helpRegistry.all();
+  const checks = await Promise.all(all.map((e) => passesLock(u, e.lock)));
+  return all.filter((_, i) => checks[i]);
+}
+
 async function showIndex(u: IUrsamuSDK): Promise<void> {
-  const sections = await helpRegistry.sections();
-  const all      = await helpRegistry.all();
-  u.send(await renderIndex(sections, all.length));
+  const entries  = await visibleEntries(u);
+  const sections = [...new Set(entries.map((e) => e.section))].sort();
+  u.send(await renderIndex(sections, entries.length));
 }
 
 async function showSection(u: IUrsamuSDK, section: string): Promise<void> {
@@ -68,7 +81,9 @@ async function showSection(u: IUrsamuSDK, section: string): Promise<void> {
     await showIndex(u);
     return;
   }
-  const entries = await helpRegistry.inSection(section);
+  const all     = await helpRegistry.inSection(section);
+  const checks  = await Promise.all(all.map((e) => passesLock(u, e.lock)));
+  const entries = all.filter((_, i) => checks[i]);
   u.send(await renderSection(section, entries));
 }
 
@@ -78,12 +93,18 @@ async function showTopic(u: IUrsamuSDK, topic: string): Promise<void> {
   const entry = await helpRegistry.lookup(topic);
 
   if (!entry) {
-    // Check if topic matches a section name
-    const sections = await helpRegistry.sections();
+    const visible = await visibleEntries(u);
+    const sections = [...new Set(visible.map((e) => e.section))].sort();
     if (sections.includes(topic)) {
       await showSection(u, topic);
       return;
     }
+    emitHelp("help:miss", { topic });
+    u.send(`No help available for '%ch${topic}%cn'.`);
+    return;
+  }
+
+  if (!(await passesLock(u, entry.lock))) {
     emitHelp("help:miss", { topic });
     u.send(`No help available for '%ch${topic}%cn'.`);
     return;
@@ -165,6 +186,68 @@ Examples:
     }
 
     u.send(`%chHelp entry '%cn${slugify(rawTopic)}%ch' deleted.%cn`);
+  },
+});
+
+// ── +help/lock ────────────────────────────────────────────────────────────────
+
+addCmd({
+  name: "+help/lock",
+  pattern: /^\+help\/lock\s+(.+)=(.*)/i,
+  lock: "connected admin+",
+  category: "Admin",
+  help: `+help/lock <topic>=<lock>  — Set or clear an access lock on a DB help entry.
+
+  <topic>  Lowercase slug of an existing DB entry.
+  <lock>   Lock expression (same syntax as command locks). Empty to clear.
+
+Lock expressions:
+  connected admin+    Admins and above only.
+  connected wizard    Wizards only.
+  connected builder+  Builders and above.
+
+Examples:
+  +help/lock staff-notes=connected admin+
+  +help/lock house-rules=connected builder+
+  +help/lock staff-notes=
+
+SEE ALSO: help lock`,
+  exec: async (u: IUrsamuSDK) => {
+    const rawTopic = u.util.stripSubs(u.cmd.args[0]).trim();
+    const rawLock  = u.util.stripSubs(u.cmd.args[1]).trim();
+
+    if (!rawTopic) {
+      u.send("Usage: +help/lock <topic>=<lock>");
+      return;
+    }
+
+    if (rawLock.length > 128) {
+      u.send("%crLock expression too long (max 128 characters).%cn");
+      return;
+    }
+
+    const topic = slugify(rawTopic);
+    const existing = await helpRegistry.lookup(topic);
+
+    if (!existing || existing.source !== "database") {
+      u.send(`No database entry found for '%ch${topic}%cn'. Only DB entries support in-game locks.`);
+      return;
+    }
+
+    await upsertEntry({
+      name:      existing.name,
+      section:   existing.section,
+      content:   existing.content,
+      tags:      existing.tags,
+      source:    "database",
+      createdBy: u.me.id,
+      lock:      rawLock || undefined,
+    });
+
+    const msg = rawLock
+      ? `%chLock set on '%cn${topic}%ch': ${rawLock}%cn`
+      : `%chLock cleared on '%cn${topic}%ch'.%cn`;
+    u.send(msg);
   },
 });
 
