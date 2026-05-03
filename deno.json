@@ -4,7 +4,7 @@
     "showcase": "deno run -A --unstable-kv --import-map=showcase.importmap.json tools/showcase.ts"
   },
   "name": "@ursamu/help-plugin",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "API-first help system framework for UrsaMU — aggregates command inline help, per-plugin help folders, and runtime entries into a single searchable registry with REST and in-game access.",
   "exports": "./mod.ts",
   "publish": {
