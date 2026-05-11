@@ -1,5 +1,24 @@
 # help — UrsaMU Plugin
 
+## Plugin identity
+
+API-first help system for UrsaMU. **Targets ursamu `^2.3.0`.**
+
+Beyond serving its own help topics, this plugin is the **central help host for
+all other plugins**: it exposes `registerHelpDir(absPath, sectionName)` from
+`./providers/file.ts`, which other plugins call in their `init()` to publish
+their `help/*.md` files into the unified registry. Anything served by `help`,
+`help/section`, and the REST endpoint comes through this provider chain
+(database → file → command, by priority).
+
+When working on this plugin, remember it owns its own theme/format pipeline
+(`+help/theme`, `+help/theme/set`, `+help/theme/reset`) with `headerfmt`,
+`dividerfmt`, `footerfmt`, `indexfmt`, and tokens — this is the equivalent
+of (and richer than) ursamu's `FormatSlot` resolver pattern. Do NOT introduce
+a parallel `@helpformat` slot; extend the existing theme system instead.
+
+---
+
 ## Setup (do this first)
 
 ```bash
@@ -24,12 +43,15 @@ deno task showcase help-basic    # run the live showcase
 deno task showcase --list        # list all showcases
 ```
 
-## Pre-commit checklist
+## Pre-commit checklist (all must pass)
 
 ```bash
-deno lint                        # lint
-deno task test --no-check        # tests
+deno check --unstable-kv mod.ts                              # type check
+deno lint                                                     # lint
+deno test --allow-all --unstable-kv --no-check tests/        # unit tests
 ```
+
+A commit is not ready if any step fails.
 
 ---
 
@@ -95,6 +117,14 @@ Examples:
 | Switch + arg | `/^\+cmd(?:\/(\S+))?\s*(.*)/i` | `[0]`=sw, `[1]`=rest |
 | Two parts (=) | `/^@name\s+(.+)=(.+)/i` | `[0]`, `[1]` |
 
+### Catch-all switch pattern — critical gotcha
+
+When a command uses `/^\+cmd(?:\/(\S+))?\s*(.*)/i`, any more-specific
+`addCmd` registered for the same prefix is dead code — the catch-all
+consumes `+cmd/anything` first. Handle sub-commands as switch branches
+inside the main exec. Only use separate `addCmd` registrations when the
+command roots are distinct (e.g. `+help` vs `+helpset`).
+
 ### Lock levels
 
 | String | Who can use it |
@@ -104,6 +134,14 @@ Examples:
 | `"connected builder+"` | Builder flag or higher |
 | `"connected admin+"` | Admin flag or higher |
 | `"connected wizard"` | Wizard only |
+
+### Lockfunc system (ursamu v2.2+)
+
+Lock strings support callable functions: `funcname(arg1, arg2)` combined
+with `&&`, `||`, `!`, `()`. Built-ins: `flag`, `attr`, `type`, `is`,
+`holds`, `perm`. Register custom lockfuncs via `registerLockFunc(name, fn)`.
+Locks are fail-closed; built-in names are protected; max 4096 chars /
+256 tokens.
 
 ---
 
