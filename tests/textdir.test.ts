@@ -1,9 +1,7 @@
-import { assertEquals } from "jsr:@std/assert";
-import { describe, it, beforeEach } from "jsr:@std/testing/bdd";
+import { assertEquals } from "@std/assert";
+import { describe, it, beforeEach } from "@std/testing/bdd";
 import { _registeredDirs, registerTextDir } from "../src/providers/textdir.ts";
 import { registerHelpDir, bustCache } from "../src/providers/file.ts";
-
-const OPTS = { sanitizeResources: false, sanitizeOps: false };
 
 describe("registerTextDir", () => {
   beforeEach(() => {
