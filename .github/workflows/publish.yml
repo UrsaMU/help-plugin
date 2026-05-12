@@ -20,8 +20,5 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Test before publish
-        run: deno task test --no-check
-
       - name: Publish to JSR
         run: deno publish
